@@ -1,0 +1,113 @@
+---
+title: "fall"
+output:
+  pdf_document: default
+  html_notebook: default
+  word_document: default
+---
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(rio)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(tableone)
+## Loading the csv file
+url <- "https://raw.githubusercontent.com/titco/titco-I/master/titco-I-full-dataset-v1.csv"
+titco_fall <- import(url) %>% as_tibble()
+
+## Filter all fall patients
+
+fall <- filter(titco_fall, moi == "Fall" )
+
+
+## to find the sample size
+nrow(fall)
+
+## Find no and % of males and females
+m <- fall$sex == "Male"
+n.m <- sum(m)
+p.m <- round(mean(m) * 100)
+f <- fall$sex == "Female"
+n.f <- sum(f)
+p.f <- round(mean(f)*100)
+## Summarize age
+ages  <- fall$age
+ages <- as.numeric(ages)
+## Break age into groups
+fall["agegroup"] <- agegroup <- cut(ages,
+                                     breaks = c(1, 17, 25, 45, 65, 85),
+                                     labels =  c("less than 18","18-24", "25-44", "45-64", "65+"))
+table1 <- table(agegroup)
+## Find percentage transferred
+t <- fall$tran == "Yes"
+n.t <- sum(t,na.rm=T)
+p.t <- round(mean(t,na.rm=T)*100)
+## Find mode of transport 
+am <- fall$mot == "Ambulance"
+n.am <- sum(am,na.rm=T)
+p.am <- round(mean(am,na.rm=T)*100)
+## Find percentage of Type of injury
+ti <- fall$ti == "Blunt"
+n.ti <- sum(ti,na.rm=T)
+p.ti <- round(mean(ti,na.rm=T)*100)
+## Create GCS group
+a.gcs <- fall$gcs_t_1
+## Break GCS into groups
+fall["gcsgroup"] <- gcsgroup <- cut(a.gcs,
+                                     breaks = c(2, 8, 13, 15),
+                                     labels = c( "3-8", "9-13", "14-15"))
+gcs.table <- table(gcsgroup)
+## Find number of surgery done
+tos <- fall$tos 
+surg1<- ifelse(tos == 0, 0,
+              ifelse(tos == 999, 0, 1))
+surgery1 <- fall["Surgery"] <- surg1 == 1
+n.s <- sum(surgery1, na.rm = TRUE)
+p.s <- round(mean(surgery1, na.rm = TRUE)*100)
+
+## Find mortality
+died <- fall$died == "Yes"
+n.died <- sum(died, na.rm = TRUE)
+p.died <- round(mean(died, na.rm = TRUE) * 100)
+## Find discharged against medical advice
+dama <- fall$dama == "Yes"
+n.dama <- sum(dama,na.rm = T)
+p.dama <- round(mean(dama,na.rm = T)*100)
+## Creating Table for TBI patients demography using table one
+table1.data <- with(fall,
+                    data.frame("Age" = age,
+                               "Sex" = sex,
+                               "Age group" = agegroup,
+                               
+                               "Type of injury" = ti,
+                               "Mode of transport" = mot,
+                               "Transferred" = ifelse(tran == "Yes", "Transferred", "Direct"),
+                               "Systolic blood pressure" = sbp_1,
+                               "Heart rate" = hr_1,
+                               "Saturation" = spo2_1,
+                               "Respiratory rate" = rr_1,
+                               "Glasgow coma scale" = gcsgroup,
+                               "Surgery" = ifelse(tos == "0", "Conservative", "Operative"),
+                               "Mortality" = ifelse(died == "Yes", "Died", "Survived"),
+                               check.names = FALSE
+                               ))
+a.table3 <- CreateTableOne(data=table1.data)
+a.table3 <- knitr::kable(print(a.table3, caption = "Table 1. Characteristics of Fall Patients", showAllLevels = TRUE, printToggle = FALSE))
+
+
+
+
+
+
+
+
+```
+
