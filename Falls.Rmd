@@ -1,0 +1,46 @@
+---
+title: "Falls"
+author: "Anna"
+date: "29/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+
+```
+
+```{r}
+data.dir <- getOption("data.dir")
+options(data.dir = "C:/Users/annan/OneDrive/Documents/GitHub/Falls")
+if (is.null(data.dir))
+    stop ("Please set the directory where the data is kept using options(data.dir = \"<path to data directory>\")")
+
+#TITCO dataset
+h <- data.table::fread(file.path(data.dir,"titco-I-full-dataset-v1.csv"))
+
+# Falls data
+fall <- subset(x=h, subset = h$moi == "Fall")
+
+#ISS parameter value
+
+
+summary(fall$niss)
+issbreaks <- c(1,9,16,25,109)
+isslabels <- c("Mild","Moderate","Severe","Profound")
+fall$isspv <-cut(fall$iss,
+                breaks = issbreaks,
+                right = FALSE,
+                labels = isslabels)
+
+#Injury Characteristics
+
+fall <- suppressWarnings(suppressMessages(unite(fall, allinj, contains("icd"), sep = ",", remove = FALSE)))
+
+
+
+
+```
+
