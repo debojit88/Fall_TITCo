@@ -1,5 +1,5 @@
 ---
-title: "fall"
+title: "Fall"
 output:
   pdf_document: default
   html_notebook: default
@@ -19,17 +19,23 @@ library(tidyr)
 library(dplyr)
 library(stringr)
 library(tableone)
+
 ## Loading the csv file
-url <- "https://raw.githubusercontent.com/titco/titco-I/master/titco-I-full-dataset-v1.csv"
-titco_fall <- import(url) %>% as_tibble()
+
+data.dir <- getOption("data.dir")
+options(data.dir = "C:/Users/annan/OneDrive/Documents/GitHub/Fall_TITCo")
+if (is.null(data.dir))
+    stop ("Please set the directory where the data is kept using options(data.dir = \"<path to data directory>\")")
+
+#TITCO dataset
+titco_fall <- data.table::fread(file.path(data.dir,"titco-I-full-dataset-v1.csv"))
+
 
 ## Filter all fall patients
-
 fall <- filter(titco_fall, moi == "Fall" )
 
-
 ## to find the sample size
-nrow(fall)
+dm <- nrow(fall)
 
 ## Find no and % of males and females
 m <- fall$sex == "Male"
@@ -38,14 +44,20 @@ p.m <- round(mean(m) * 100)
 f <- fall$sex == "Female"
 n.f <- sum(f)
 p.f <- round(mean(f)*100)
+
 ## Summarize age
-ages  <- fall$age
-ages <- as.numeric(ages)
 ## Break age into groups
-fall["agegroup"] <- agegroup <- cut(ages,
-                                     breaks = c(1, 17, 25, 45, 65, 85),
-                                     labels =  c("less than 18","18-24", "25-44", "45-64", "65+"))
-table1 <- table(agegroup)
+agebreaks <- c(17,25,45,65,98)
+agelabels <- c("18-24","25-44","45-64","65+")
+
+fall$age <- as.numeric(fall$age)
+
+fall$agegrp <-cut(fall$age,
+                breaks = agebreaks,
+                right = FALSE,
+                labels = agelabels)
+table1 <- table(fall$agegrp)
+
 ## Find percentage transferred
 t <- fall$tran == "Yes"
 n.t <- sum(t,na.rm=T)
@@ -58,13 +70,16 @@ p.am <- round(mean(am,na.rm=T)*100)
 ti <- fall$ti == "Blunt"
 n.ti <- sum(ti,na.rm=T)
 p.ti <- round(mean(ti,na.rm=T)*100)
+
 ## Create GCS group
-a.gcs <- fall$gcs_t_1
-## Break GCS into groups
-fall["gcsgroup"] <- gcsgroup <- cut(a.gcs,
-                                     breaks = c(2, 8, 13, 15),
-                                     labels = c( "3-8", "9-13", "14-15"))
+gcsbreaks <- c(2,8,13,15)
+gcslabels <- c( "3-8", "9-13", "14-15")
+fall$gcsgrp <-cut(fall$gcs_t_1,
+                breaks = issbreaks,
+                right = FALSE,
+                labels = isslabels)
 gcs.table <- table(gcsgroup)
+
 ## Find number of surgery done
 tos <- fall$tos 
 surg1<- ifelse(tos == 0, 0,
@@ -81,11 +96,20 @@ p.died <- round(mean(died, na.rm = TRUE) * 100)
 dama <- fall$dama == "Yes"
 n.dama <- sum(dama,na.rm = T)
 p.dama <- round(mean(dama,na.rm = T)*100)
+
+#ISS parameter value
+issbreaks <- c(1,9,16,25,109)
+isslabels <- c("Mild","Moderate","Severe","Profound")
+fall$isspv <-cut(fall$iss,
+                breaks = issbreaks,
+                right = FALSE,
+                labels = isslabels)
+
 ## Creating Table for TBI patients demography using table one
 table1.data <- with(fall,
                     data.frame("Age" = age,
                                "Sex" = sex,
-                               "Age group" = agegroup,
+                               "Age group" = agegrp,
                                
                                "Type of injury" = ti,
                                "Mode of transport" = mot,
@@ -101,13 +125,6 @@ table1.data <- with(fall,
                                ))
 a.table3 <- CreateTableOne(data=table1.data)
 a.table3 <- knitr::kable(print(a.table3, caption = "Table 1. Characteristics of Fall Patients", showAllLevels = TRUE, printToggle = FALSE))
-
-
-
-
-
-
-
 
 ```
 
