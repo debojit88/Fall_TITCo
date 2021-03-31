@@ -84,7 +84,12 @@ gcs.table <- table(gcsgroup)
 tos <- fall$tos 
 surg1<- ifelse(tos == 0, 0,
               ifelse(tos == 999, 0, 1))
-surgery1 <- fall["Surgery"] <- surg1 == 1
+surgery1 <- fall["Surgery"] <- surg1 == 1 
+# @DB, can you pls check the above code
+#I am getting the followin error:
+#Error in `[.data.table`(x, i, which = TRUE) : 
+#  When i is a data.table (or character vector), the columns to join by must be specified using 'on=' argument (see ?data.table), by keying x (i.e. sorted, and, marked as sorted, see ?setkey), or by sharing column names between x and i (i.e., a natural join). Keyed joins might have further speed benefits on very large data due to x being sorted in RAM.
+
 n.s <- sum(surgery1, na.rm = TRUE)
 p.s <- round(mean(surgery1, na.rm = TRUE)*100)
 
@@ -104,6 +109,72 @@ fall$isspv <-cut(fall$iss,
                 breaks = issbreaks,
                 right = FALSE,
                 labels = isslabels)
+
+#Characteristics of Injury
+
+fall <- suppressWarnings(suppressMessages(unite(fall, allinj, contains("icd"), sep = ",", remove = FALSE)))
+
+crush_inj <- str_c(c("s07","s07.0","s07.1","s07.8","s07.9","s17","s17.0","s17.8","s17.9","s28.0","s38.0","s38.1","t04.1","s47","s57","s57.0","s57.8","s57.9","s67","s67.0","s67.8","t04.2","s77.0","s77.1","s77.2","s87","s87.0","s87.8","s97","s97.0","s97.1","s97.8","t04.3","t04.8","t04.9","t14.7"),collapse = "|")
+
+crush <- filter(fall, str_detect(allinj, crush_inj))
+crush$inj_type <- "Crush Injury"
+rest <- suppressWarnings(suppressMessages(fall %>% anti_join(crush)))
+
+internal_inj <- str_c(c("s06","s06.0","s06.1","s06.2","s06.3","s06.4","s06.5","s06.6","s06.7","s06.8","s06.9","t90.5","s14.0","s14.1","s24.0","s24.1","s34.0","s34.1","s34.3","t09.3","t91.3","s14.2","s26.0","s27.0","s27.1","s27.2","s27.3","s27.4","s27.5","s27.6","s27.8","s27.9","t91.4","s36","s36.0","s36.1","s36.2","s36.3","s36.4","s36.5","s36.6","s36.7","s36.8","s36.9","s3.7","s37.0","s37.1","s37.2","s37.3","s37.4","s37.5","s37.6","s37.7","s37.8","s37.9","s39.6","s39.7","t06.5","t91.5"),collapse = "|")
+
+internal <- filter(rest, str_detect(allinj, internal_inj))
+internal$inj_type <- "Internal Injury"
+rest <- suppressWarnings(suppressMessages(rest %>% anti_join(internal)))
+
+bv_inj <- str_c(c("s09.0","s15.0","s51.2","s15.3","s15.4","s15.5","s15.6","s15.7","s15.8","s15.9","s15.1","s25","s25.0","s25.1","s25.2","s25.3","s25.4","s25.5","s25.7","s25.8","s25.9","s35.0","s35.1","s35.2","s35.3","s35.4","s35.5","s35.7","s35.8","s35.9","s45","s45.0","s45.1","s45.2","s45.3","s45.7","s45.8","s45.9","s55","s55.0","s55.1","s55.2","s55.7","s55.8","s55.9","s65","s65.0","s65.1","s65.2","s65.3","s65.4","s65.5","s65.7","s65.8","s65.9","t11.4","s75","s75.0","s75.1","s75.2","s75.7","s75.8","s75.9","s85","s85.0","s85.1","s85.2","s85.3","s85.4","s85.5","s85.7","s85.8","s85.9","s95","s95.0","s95.1","s95.2","s95.7","s95.8","s95.9","t13.4","t06.3","t14.5"),collapse = "|")
+
+bv <- filter(rest, str_detect(allinj, bv_inj))
+bv$inj_type <- "Blood Vessel"
+rest <- suppressWarnings(suppressMessages(rest %>% anti_join(bv)))
+
+amp_inj <- str_c(c("s08","s08.1","s08.2","s08.3","s08.4","s08.5","s08.6","s08.7","s08.8","s08.9","s18","s28.1","s38.2","s38.3","t09.6","s48","s48.0","s48.1","s48.9","s58","s58.0","s58.1","s58,9","s68","s68.0","s68.1","s68.2","s68.3","s68.4","s68.8","s68.9","t05.0","t05.2","t11.6","s78.0","s78.1","s78.2","s78.3","s78.4","s78.5","s78.6","s78.7","s78.8","s78.9","s88","s88.0","s88.1","s88.9","s98","s98.0","s98.1","s98.2","s98.3","s98.4","s78.0","t05.3","t05.5","t13.6","t05.8","t05.9"),collapse = "|")
+
+amputation <- filter(rest, str_detect(allinj, amp_inj))
+amputation$inj_type <- "Amputation"
+rest <- suppressWarnings(suppressMessages(rest %>% anti_join(amputation)))
+
+frac_inj <- str_c(c("s02","s02.0","s02.1","s02.3","s02.7","s02.9","t90.2","s02.2","s02.4","s02.5","s02.6","s12","s12.8","s12.9","s12.0","s12.1","s12.2","s12.3","s12.4","s12.5","s12.6","s12.7","s22","s22.0","s22.1","s32","s32.0","s32.1","s32.2","t08","t91.1","s22.2","s22.3","s22.4","s22.5","s22.6","s22.7","s22.8","s22.9","s32.3","s32.4","s32.5","s32.6","s32.7","s32.8","t02.1","t91.2","s42","s42.0","s42.1","s42.2","s42.3","s42.4","s42.7","s42.8","s42.9","s52","s52.0","s52.1","s52.2","s52.3","s52.4","s52.5","s52.6","s52.7","s52.8","s52.9","s62","s62.0","s62.1","s62.2","s62.3","s62.4","s62.5","s62.6","s62.7","s62.8","t02.2","t02.4","t10","t92.1","t92.2","s72","s72.0","s72.1","s72.2","s72.3","s72.4","s72.5","s72.6","s72.7","s72.8","s72.9","s82","s82.0","s82.1","s82.2","s82.3","s82.4","s82.5","s82.6","s82.7","s82.8","s82.9","s92","s92.0","s92.1","s92.2","s92.3","s92.4","s92.5","s92.7","s92.9","t02.3","t02.5","t12","t93.1","t93.2","t02.8","t02.9","t14.2"),collapse = "|")
+
+frac <- filter(rest, str_detect(allinj, frac_inj))
+frac$inj_type <- "Fracture"
+rest <- suppressWarnings(suppressMessages(rest %>% anti_join(frac)))
+
+disl_inj <- str_c(c("s03.0","s03.1","s03.2","s03.3","s13.0","s13.1","s13.2","s13.3","s23.0","s23.1","s33.0","s33.1","s33.2","s23.2","s33.3","s33.4","s43.0","s43.1","s43.2","s43.3","s53.0","s53.1","s63.0","s63.1","s63.2","s73.0","s83.0","s83.1","s93","s93.0","s93.1","s93.3","t14.3"),collapse = "|")
+
+disl <- filter(rest, str_detect(allinj, disl_inj))
+disl$inj_type <- "Dislocation"
+rest <- suppressWarnings(suppressMessages(rest %>% anti_join(disl)))
+
+multiple_inj <- str_c(c("s09.7","s19.7","s27.7","s29.7","t03.1","t09.2","s49.7","s59.7","s69.7","t03.2","t11.2","t92.3","t92.6","s79.7","s89.7","s99.7","t03.3","t13.2","t93.3","t93.6","t03.8","t03.9","t91.0","t14.3","t14.7"),collapse = "|")
+
+multiple <- filter(rest, str_detect(allinj, multiple_inj))
+multiple$inj_type <- "Multiple Injuries"
+rest <- suppressWarnings(suppressMessages(rest %>% anti_join(multiple)))
+
+unspe_inj <- str_c(c("s09.9","t90.9","s05.9","s19.9","s26.9","s29.9","s39.9","t09.9","s49.9","s59.9","s69.9","t11.9","t92.9","s79.9","s83.7","s89.9","s99.9","t13.9","t93.9","t07","t91.9","t94.0","t14.8","t14.9","t94.1","t98.1"),collapse = "|")
+
+unspe <- filter(rest, str_detect(allinj, unspe_inj))
+unspe$inj_type <- "Unspecified Injury"
+rest <- suppressWarnings(suppressMessages(rest %>% anti_join(unspe)))
+
+open_inj <- str_c(c("s01","s01.0","s01.1","s01.2","s01.3","s01.4","s01.5","s01.7","s01.8","s01.9","t90.1","s05.2","s05.3","s05.4","s05.5","s05.6","s05.7","s08.0","s09.2","s11","s11.0","s11.1","s11.2","s11.7","s11.8","s11.9","s21","s21.0","s21.1","s21.2","s21.7","s21.8","s21.9","s31.1","s31.8","s31.0","s31.2","s31.3","s31.4","s31.5","s31.7","t09.1","s41","s41.0","s41.1","s41.7","s41.8","s51","s51.0","s51.7","s51.8","s51.9","s61","s61.0","s61.1","s617","s61.8","s61.9","t01.2","t11.1","t92.0","s71.0","s71.1","s71.2","s71.3","s71.4","s71.5","s71.6","s71.7","s71.8","s81","s81.0","s81.7","s81.8","s81.9","s91","s91.0","s91.1","s91.2","s91.3","s91.7","t01.3","t13.1","t93.0","t01.9","t14.1"),collapse = "|")
+
+open <- filter(rest, str_detect(allinj, open_inj))
+open$inj_type <- "Open wound"
+rest <- suppressWarnings(suppressMessages(rest %>% anti_join(open)))
+
+supf_inj <- str_c(c("s00","s00.0","s00.1","s00.2","s00.3","s00.4","s00.5","s00.7","s00.8","s00.9","s05.0","s05.1","t90.0","s10","s10.0","s10.1","s10.7","s10.8","s10.9","s20","s20.0","s20.1","s20.2","s20.3","s20.4","s20.7","s20.8","s30.1","s30.0","s30.2","s30.7","s30.8","s30.9","t09.0","s40","s40.0","s40.7","s40.8","s40.9","s50","s50.0","s50.1","s50.7","s50.8","s50.9","s60","s60.0","s60.1","s60.2","s60.7","s60.8","s60.9","t00.2","t11.0","s70","s70.0","s70.1","s70.2","s70.3","s70.4","s70.5","s70.6","s70.7","s70.8","s70.9","s80","s80.0","s80.1","s80.7","s80.8","s80.9","s90","s90.0","s90.1","s90.2","s90.3","s90.7","s90.8","s90.9","t00.3","t13.0","t00.8","t00.9","t14.0","t15.0"),collapse = "|")
+
+supf <- filter(rest, str_detect(allinj, supf_inj))
+supf$inj_type <- "Superficial Injury"
+no_def_inj <- suppressWarnings(suppressMessages(rest %>% anti_join(supf)))
+
+table(no_def_inj$allinj)
 
 ## Creating Table for TBI patients demography using table one
 table1.data <- with(fall,
