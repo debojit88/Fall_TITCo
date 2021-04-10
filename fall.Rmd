@@ -33,7 +33,7 @@ if (is.null(data.dir))
 titco_fall <- data.table::fread(file.path(data.dir,"titco-I-full-dataset-v1.csv"))
 
 ## Filter all fall patients
-fall <- filter(titco_fall, moi == "Fall" )
+fall <- subset(titco_fall, titco_fall$moi == "Fall")
 
 ## to find the sample size
 dm <- nrow(fall)
@@ -57,7 +57,18 @@ fall$agegrp <-cut(fall$age,
                 breaks = agebreaks,
                 right = FALSE,
                 labels = agelabels)
-table1 <- table(fall$agegrp)
+
+
+#Age group range 20
+agebreaks <- c(0,21,41,61,81,101)
+agelabels <- c("0-20","21-40","41-60","61-80","81-100")
+
+fall$age <- as.numeric(fall$age)
+
+fall$tagegrp <-cut(fall$age,
+                breaks = agebreaks,
+                right = FALSE,
+                labels = agelabels)
 
 ## Find percentage transferred
 t <- fall$tran == "Yes"
@@ -252,36 +263,51 @@ amp_other_lw_ex <- filter(fall, str_detect(allinj, amp.other.lw.ex))
 
 frac.tbi <- str_c(c("s02","s02.0","s02.1","s02.3","s02.7","s02.9","t90.2"), collapse = "|")
 frac_tbi <- filter(fall, str_detect(allinj, frac.tbi))
+frac_tbi$fracture <- "TBI"
 
 frac.other.head <- str_c(c("s02.2","s02.4","s02.5","s02.6"), collapse = "|")
 frac_other_head <- filter(fall, str_detect(allinj, frac.other.head))
+frac_other_head$fracture <- "Other head"
 
 frac.neck <- str_c(c("s12","s12.8","s12.9"),collapse = "|")
 frac_neck <- filter(fall, str_detect(allinj, frac.neck))
+frac_neck$fracture <- "Neck"
 
 frac.vertebral.col <- str_c(c("s12.0","s12.1","s12.2","s12.3","s12.4","s12.5","s12.6","s12.7","s22","s22.0","s22.1","s32","s32.0","s32.1","s32.2","t08","t91.1"),collapse = "|")
 frac_vertebral_col <- filter(fall, str_detect(allinj, frac.vertebral.col))
+frac_vertebral_col$fracture <- "Vertebral Column"
 
 frac.thorax <- str_c(c("s22.2","s22.3","s22.4","s22.5","s22.6","s22.7","s22.8","s22.9"),collapse = "|")
 frac_thorax <- filter(fall, str_detect(allinj, frac.thorax))
+frac_thorax$fracture <- "Thorax"
 
 frac.plb <- str_c(c("s32.3","s32.4","s32.5","s32.6","s32.7","s32.8","t02.1"),collapse = "|")
 frac_plb <- filter(fall, str_detect(allinj, frac.plb))
+frac_plb$fracture <- "Pelvis and Lower back"
 
 frac.up.ex <- str_c(c("s42","s42.0","s42.1","s42.2","s42.3","s42.4","s42.7","s42.8","s42.9","s52","s52.0","s52.1","s52.2","s52.3","s52.4","s52.5","s52.6","s52.7","s52.8","s52.9","s62","s62.0","s62.1","s62.2","s62.3","s62.4","s62.5","s62.6","s62.7","s62.8","t02.2","t02.4","t10","t92.1","t92.2"), collapse = "|")
 frac_up_ex <- filter(fall,str_detect(allinj, frac.up.ex))
+frac_up_ex$fracture <- "Upper Extremeties"
 
 frac.hip <- str_c(c("s72","s72.0","s72.1","s72.2"),collapse = "|")
 frac_hip <- filter(fall, str_detect(allinj,frac.hip))
+frac_hip$fracture <- "Hip"
 
 frac.other.lw.ex <-str_c(c("s72.3","s72.4","s72.5","s72.6","s72.7","s72.8","s72.9","s82","s82.0","s82.1","s82.2","s82.3","s82.4","s82.5","s82.6","s82.7","s82.8","s82.9","s92","s92.0","s92.1","s92.2","s92.3","s92.4","s92.5","s92.7","s92.9","t02.3","t02.5","t12","t93.1","t93.2"),collapse = "|")
 frac_other_lw_ex <- filter(fall,str_detect(allinj, frac.other.lw.ex))
+frac_other_lw_ex$fracture <- "Lower extremeties"
 
 frac.multiple <- str_c(c("t02.8","t02.9"),collapse = "|")
 frac_multiple <- filter(fall,str_detect(allinj,frac.multiple))
+frac_multiple$fracture <- "Multiple"
 
 frac.unspecified <- str_c("t14.2",collapse = "|")
 frac_unspecified <- filter(fall,str_detect(allinj, frac.unspecified))
+frac_unspecified$fracture <- "Unspecified"
+
+f <- rbind(frac_unspecified,frac_multiple,frac_other_lw_ex,frac_hip,frac_up_ex,frac_plb,frac_thorax,frac_vertebral_col,frac_neck,frac_other_head,frac_tbi)
+
+#table(f$tagegrp,f$fracture)
 
 # Dislocation
 
