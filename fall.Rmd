@@ -7,9 +7,6 @@ output:
 ---
 
 
-
-
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
@@ -19,6 +16,13 @@ library(tidyr)
 library(dplyr)
 library(stringr)
 library(tableone)
+library(labelled)
+```
+
+
+
+```{r setup, include=FALSE}
+
 
 ## Loading the csv file
 
@@ -60,8 +64,8 @@ fall$agegrp <-cut(fall$age,
 
 
 #Age group range 20
-agebreaks <- c(0,21,41,61,81,101)
-agelabels <- c("0-20","21-40","41-60","61-80","81-100")
+agebreaks <- c(0,11,21,31,41,51,61,71,81,91,101)
+agelabels <- c("0-10","11-20","21-30","31-40","41-50","51-60","61-70","71-80","81-90","91-100")
 
 fall$age <- as.numeric(fall$age)
 
@@ -87,10 +91,10 @@ p.ti <- round(mean(ti,na.rm=T)*100)
 gcsbreaks <- c(2,8,13,15)
 gcslabels <- c( "3-8", "9-13", "14-15")
 fall$gcsgrp <-cut(fall$gcs_t_1,
-                breaks = issbreaks,
+                breaks = gcsbreaks,
                 right = FALSE,
-                labels = isslabels)
-gcs.table <- table(gcsgroup)
+                labels = gcslabels)
+
 
 ## Find number of surgery done
 tos <- fall$tos 
@@ -187,8 +191,6 @@ supf$inj_type <- "Superficial Injury"
 no_def_inj <- suppressWarnings(suppressMessages(rest %>% anti_join(supf)))
 no_def_inj$inj_type <- "No defined Injury"
 fall <- suppressWarnings(suppressMessages(rbind(no_def_inj,supf,open,unspe,multiple,disl,frac,amputation,bv,internal,crush)))
-
-table(fall$inj_type)
 
 # Nature and location of Injury
 # Crush injury
@@ -307,7 +309,7 @@ frac_unspecified$fracture <- "Unspecified"
 
 f <- rbind(frac_unspecified,frac_multiple,frac_other_lw_ex,frac_hip,frac_up_ex,frac_plb,frac_thorax,frac_vertebral_col,frac_neck,frac_other_head,frac_tbi)
 
-#table(f$tagegrp,f$fracture)
+#table(f$fracture,f$tagegrp,f$sex)
 
 # Dislocation
 
@@ -505,25 +507,32 @@ spec.unspe <- str_c(c("t14.4","t14.6"),collapse = "|")
 spec_unspe <- filter(fall, str_detect(allinj, spec.unspe))
 
 ## Creating Table for TBI patients demography using table one
-table1.data <- with(fall,
-                    data.frame("Age" = age,
-                               "Sex" = sex,
-                               "Age group" = agegrp,
-                               
-                               "Type of injury" = ti,
-                               "Mode of transport" = mot,
-                               "Transferred" = ifelse(tran == "Yes", "Transferred", "Direct"),
-                               "Systolic blood pressure" = sbp_1,
-                               "Heart rate" = hr_1,
-                               "Saturation" = spo2_1,
-                               "Respiratory rate" = rr_1,
-                               "Glasgow coma scale" = gcsgroup,
-                               "Surgery" = ifelse(tos == "0", "Conservative", "Operative"),
-                               "Mortality" = ifelse(died == "Yes", "Died", "Survived"),
-                               check.names = FALSE
-                               ))
-a.table3 <- CreateTableOne(data=table1.data)
-a.table3 <- knitr::kable(print(a.table3, caption = "Table 1. Characteristics of Fall Patients", showAllLevels = TRUE, printToggle = FALSE))
+fall$died<-factor(fall$died, levels = c("Yes","No"), labels = c("Died", "Survived"))
+fall$surgery <- factor(if_else(fall$tos == 0, "Conservative","Operative"))
+
+var_label(fall) <- list(sex="Sex",
+                        age="Age",
+                        agegrp="Age Group",
+                        ti = "Type of injury",
+                        mot="Mode of transport",
+                        tran = "Transferred",
+                        sbp_1="Systolic blood pressure",
+                        hr_1="Heart rate",
+                        spo2_1="Saturation",
+                        rr_1="Respiratory rate",
+                        gcsgrp="Glasgow comma scale",
+                        surgery="Surgery",
+                        died = "Mortality",
+                        isspv = "Injury Severity Score (ISS)",
+                        inj_type="Injury type",
+                        died = "Mortality")
+
+myvars <- c("age","sex","agegrp","ti","mot","sbp_1","hr_1","spo2_1","rr_1","gcsgrp","surgery","isspv","inj_type","died")
+catvars <- c("sex","agegrp","ti","mot","gcsgrp","surgery","isspv","inj_type","died")
+
+Table1 <- CreateTableOne(vars = myvars, strata = "tran", data=fall, factorVars = catvars)
+knitr::kable(print(Table1,
+                   caption = "Table 1. Demographic, Physiological parameters", showAllLevels = TRUE, printToggle = FALSE, varLabels = TRUE))
 
 ```
 
