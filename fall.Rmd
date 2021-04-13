@@ -21,7 +21,7 @@ library(labelled)
 
 
 
-```{r setup, include=FALSE}
+```{r}
 
 
 ## Loading the csv file
