@@ -34,38 +34,47 @@ if (is.null(data.dir))
     stop ("Please set the directory where the data is kept using options(data.dir = \"<path to data directory>\")")
 
 #TITCO dataset
-titco_fall <- data.table::fread(file.path(data.dir,"titco-I-full-dataset-v1.csv"))
+dt <- data.table::fread(file.path(data.dir,"titco-I-full-dataset-v1.csv"))
 
-## Filter all fall patients
-fall <- subset(titco_fall, titco_fall$moi == "Fall")
+#Combine all ICD codes columns
 
-## to find the sample size
-dm <- nrow(fall)
+dt <- suppressWarnings(suppressMessages(unite(dt, allinj, contains("icd"), sep = ",", remove = FALSE)))
 
-## Find no and % of males and females
-m <- fall$sex == "Male"
-n.m <- sum(m)
-p.m <- round(mean(m) * 100)
-f <- fall$sex == "Female"
-n.f <- sum(f)
-p.f <- round(mean(f)*100)
+#Selecting only specific columns
+
+dt <- dt  %>% dplyr::select(pid, age, sex, tran, doi, toi, doar, toar, doa, toa, moi, mot, ti, sbp_1, spo2_1, spo2_o2_1, rr_1, hr_1, gcs_t_1, intub_1, saw_1, icd_1, tos, losu, ct, fast, xray, dama, iss, niss, allinj, died)
+
+# Filter all fall patients
+fall <- subset(dt, dt$moi == "Fall")
 
 ## Summarize age
-## Break age into groups
-agebreaks <- c(17,25,45,65,98)
-agelabels <- c("18-24","25-44","45-64","65+")
+## Break age into group
 
-fall$age <- as.numeric(fall$age)
+agebreaks <- c(0,17,25,45,65,98)
+agelabels <- c("<18","18-24","25-44","45-64","65+")
 
-fall$agegrp <-cut(fall$age,
+dt$age <- as.numeric(dt$age)
+
+dt$agegrp <-cut(dt$age,
                 breaks = agebreaks,
                 right = FALSE,
                 labels = agelabels)
 
 
+
+#ISS
+
+#ISS parameter value
+issbreaks <- c(1,9,16,25,109)
+isslabels <- c("Mild","Moderate","Severe","Profound")
+dt$isspv <-cut(dt$iss,
+                breaks = issbreaks,
+                right = FALSE,
+                labels = isslabels)
+
 #Age group range 20
-agebreaks <- c(0,11,21,31,41,51,61,71,81,91,101)
-agelabels <- c("0-10","11-20","21-30","31-40","41-50","51-60","61-70","71-80","81-90","91-100")
+agebreaks <- c(0,11,21,31,41,51,61,71,81,91)
+agelabels <- c("0-10","11-20","21-30","31-40","41-50","51-60","61-70","71-80","81-90")
 
 fall$age <- as.numeric(fall$age)
 
@@ -74,61 +83,7 @@ fall$tagegrp <-cut(fall$age,
                 right = FALSE,
                 labels = agelabels)
 
-## Find percentage transferred
-t <- fall$tran == "Yes"
-n.t <- sum(t,na.rm=T)
-p.t <- round(mean(t,na.rm=T)*100)
-## Find mode of transport 
-am <- fall$mot == "Ambulance"
-n.am <- sum(am,na.rm=T)
-p.am <- round(mean(am,na.rm=T)*100)
-## Find percentage of Type of injury
-ti <- fall$ti == "Blunt"
-n.ti <- sum(ti,na.rm=T)
-p.ti <- round(mean(ti,na.rm=T)*100)
-
-## Create GCS group
-gcsbreaks <- c(2,8,13,15)
-gcslabels <- c( "3-8", "9-13", "14-15")
-fall$gcsgrp <-cut(fall$gcs_t_1,
-                breaks = gcsbreaks,
-                right = FALSE,
-                labels = gcslabels)
-
-
-## Find number of surgery done
-tos <- fall$tos 
-surg1<- ifelse(tos == 0, 0,
-              ifelse(tos == 999, 0, 1))
-surgery1 <- fall["Surgery"] <- surg1 == 1 
-# @DB, can you pls check the above code
-#I am getting the followin error:
-#Error in `[.data.table`(x, i, which = TRUE) : 
-#  When i is a data.table (or character vector), the columns to join by must be specified using 'on=' argument (see ?data.table), by keying x (i.e. sorted, and, marked as sorted, see ?setkey), or by sharing column names between x and i (i.e., a natural join). Keyed joins might have further speed benefits on very large data due to x being sorted in RAM.
-
-n.s <- sum(surgery1, na.rm = TRUE)
-p.s <- round(mean(surgery1, na.rm = TRUE)*100)
-
-## Find mortality
-died <- fall$died == "Yes"
-n.died <- sum(died, na.rm = TRUE)
-p.died <- round(mean(died, na.rm = TRUE) * 100)
-## Find discharged against medical advice
-dama <- fall$dama == "Yes"
-n.dama <- sum(dama,na.rm = T)
-p.dama <- round(mean(dama,na.rm = T)*100)
-
-#ISS parameter value
-issbreaks <- c(1,9,16,25,109)
-isslabels <- c("Mild","Moderate","Severe","Profound")
-fall$isspv <-cut(fall$iss,
-                breaks = issbreaks,
-                right = FALSE,
-                labels = isslabels)
-
 #Characteristics of Injury
-
-fall <- suppressWarnings(suppressMessages(unite(fall, allinj, contains("icd"), sep = ",", remove = FALSE)))
 
 crush_inj <- str_c(c("s07","s07.0","s07.1","s07.8","s07.9","s17","s17.0","s17.8","s17.9","s28.0","s38.0","s38.1","t04.1","s47","s57","s57.0","s57.8","s57.9","s67","s67.0","s67.8","t04.2","s77.0","s77.1","s77.2","s87","s87.0","s87.8","s97","s97.0","s97.1","s97.8","t04.3","t04.8","t04.9","t14.7"),collapse = "|")
 
@@ -144,13 +99,13 @@ rest <- suppressWarnings(suppressMessages(rest %>% anti_join(amputation)))
 
 bv_inj <- str_c(c("s09.0","s15.0","s51.2","s15.3","s15.4","s15.5","s15.6","s15.7","s15.8","s15.9","s15.1","s25","s25.0","s25.1","s25.2","s25.3","s25.4","s25.5","s25.7","s25.8","s25.9","s35.0","s35.1","s35.2","s35.3","s35.4","s35.5","s35.7","s35.8","s35.9","s45","s45.0","s45.1","s45.2","s45.3","s45.7","s45.8","s45.9","s55","s55.0","s55.1","s55.2","s55.7","s55.8","s55.9","s65","s65.0","s65.1","s65.2","s65.3","s65.4","s65.5","s65.7","s65.8","s65.9","t11.4","s75","s75.0","s75.1","s75.2","s75.7","s75.8","s75.9","s85","s85.0","s85.1","s85.2","s85.3","s85.4","s85.5","s85.7","s85.8","s85.9","s95","s95.0","s95.1","s95.2","s95.7","s95.8","s95.9","t13.4","t06.3","t14.5"),collapse = "|")
 
-bv <- filter(fall, str_detect(allinj, bv_inj))
+bv <- filter(rest, str_detect(allinj, bv_inj))
 bv$inj_type <- "Blood Vessel"
 rest <- suppressWarnings(suppressMessages(rest %>% anti_join(bv)))
 
 internal_inj <- str_c(c("s06","s06.0","s06.1","s06.2","s06.3","s06.4","s06.5","s06.6","s06.7","s06.8","s06.9","t90.5","s14.0","s14.1","s24.0","s24.1","s34.0","s34.1","s34.3","t09.3","t91.3","s14.2","s26.0","s27.0","s27.1","s27.2","s27.3","s27.4","s27.5","s27.6","s27.8","s27.9","t91.4","s36","s36.0","s36.1","s36.2","s36.3","s36.4","s36.5","s36.6","s36.7","s36.8","s36.9","s37","s37.0","s37.1","s37.2","s37.3","s37.4","s37.5","s37.6","s37.7","s37.8","s37.9","s39.6","s39.7","t06.5","t91.5"),collapse = "|")
 
-internal <- filter(fall, str_detect(allinj, internal_inj))
+internal <- filter(rest, str_detect(allinj, internal_inj))
 internal$inj_type <- "Internal Injury"
 rest <- suppressWarnings(suppressMessages(rest %>% anti_join(internal)))
 
@@ -202,24 +157,33 @@ crush_lw.ex <- filter(fall, str_detect(allinj, crush.lw.ex))
 
 internal.tbi <- str_c(c("s06","s06.0","s06.1","s06.2","s06.3","s06.4","s06.5","s06.6","s06.7","s06.8","s06.9","t90.5"),collapse = "|")
 internal_tbi <- filter(fall,str_detect(allinj, internal.tbi))
+internal_tbi$internal <- "TBI"
 
 internal.sc <- str_c(c("s14.0","s14.1","s24.0","s24.1","s34.0","s34.1","s34.3","t09.3","t91.3"),collapse = "|")
 internal_sc <- filter(fall, str_detect(allinj, internal.sc))
+internal_sc$internal <- "Spinal Cord"
 
 internal.vc <- str_c("s14.2",collapse = "|")
 internal_vc <- filter(fall, str_detect(allinj, internal.vc))
+internal_vc$internal <- "Vertebral column"
 
 internal.thorax <- str_c(c("s26.0","s27.0","s27.1","s27.2","s27.3","s27.4","s27.5","s27.6","s27.8","s27.9","t91.4"), collapse = "|")
 internal_thorax <- filter(fall, str_detect(allinj, internal.thorax))
+internal_thorax$internal <- "Thorax"
 
 internal.abd <- str_c(c("s36","s36.0","s36.1","s36.2","s36.3","s36.4","s36.5","s36.6","s36.7","s36.8","s36.9"), collapse = "|")
 internal_abd <- filter(fall, str_detect(allinj, internal.abd))
+internal_abd$internal <- "Abdomen"
 
 internal.plb <- str_c(c("s37","s37.0","s37.1","s37.2","s37.3","s37.4","s37.5","s37.6","s37.7","s37.8","s37.9"), collapse = "|")
 internal_plb <- filter(fall, str_detect(allinj, internal.plb))
+internal_plb$internal <- "PLB"
 
 internal.abd.plb <- str_c(c("s39.6","s39.7","t06.5","t91.5"), collapse = "|")
 internal_abd_plb <- filter(fall, str_detect(allinj, internal.abd.plb))
+internal_abd_plb$internal <- "Abdomen,PLB"
+
+i <- rbind(internal_abd,internal_abd_plb,internal_plb,internal_sc,internal_tbi,internal_thorax,internal_vc)
 
 # Blood Vessel Injury
 
@@ -308,8 +272,6 @@ frac_unspecified <- filter(fall,str_detect(allinj, frac.unspecified))
 frac_unspecified$fracture <- "Unspecified"
 
 f <- rbind(frac_unspecified,frac_multiple,frac_other_lw_ex,frac_hip,frac_up_ex,frac_plb,frac_thorax,frac_vertebral_col,frac_neck,frac_other_head,frac_tbi)
-
-#table(f$fracture,f$tagegrp,f$sex)
 
 # Dislocation
 
@@ -506,6 +468,53 @@ spec_multiple <- filter(fall, str_detect(allinj, spec.multiple))
 spec.unspe <- str_c(c("t14.4","t14.6"),collapse = "|")
 spec_unspe <- filter(fall, str_detect(allinj, spec.unspe))
 
+## to find the sample size
+dm <- nrow(fall)
+
+## Find no and % of males and females
+m <- fall$sex == "Male"
+n.m <- sum(m)
+p.m <- round(mean(m) * 100)
+f <- fall$sex == "Female"
+n.f <- sum(f)
+p.f <- round(mean(f)*100)
+
+## Find percentage transferred
+t <- fall$tran == "Yes"
+n.t <- sum(t,na.rm=T)
+p.t <- round(mean(t,na.rm=T)*100)
+## Find mode of transport 
+am <- fall$mot == "Ambulance"
+n.am <- sum(am,na.rm=T)
+p.am <- round(mean(am,na.rm=T)*100)
+## Find percentage of Type of injury
+ti <- fall$ti == "Blunt"
+n.ti <- sum(ti,na.rm=T)
+p.ti <- round(mean(ti,na.rm=T)*100)
+
+
+## Find number of surgery done
+tos <- fall$tos 
+surg1<- ifelse(tos == 0, 0,
+              ifelse(tos == 999, 0, 1))
+surgery1 <- fall["Surgery"] <- surg1 == 1 
+# @DB, can you pls check the above code
+#I am getting the followin error:
+#Error in `[.data.table`(x, i, which = TRUE) : 
+#  When i is a data.table (or character vector), the columns to join by must be specified using 'on=' argument (see ?data.table), by keying x (i.e. sorted, and, marked as sorted, see ?setkey), or by sharing column names between x and i (i.e., a natural join). Keyed joins might have further speed benefits on very large data due to x being sorted in RAM.
+
+n.s <- sum(surgery1, na.rm = TRUE)
+p.s <- round(mean(surgery1, na.rm = TRUE)*100)
+
+## Find mortality
+died <- fall$died == "Yes"
+n.died <- sum(died, na.rm = TRUE)
+p.died <- round(mean(died, na.rm = TRUE) * 100)
+## Find discharged against medical advice
+dama <- fall$dama == "Yes"
+n.dama <- sum(dama,na.rm = T)
+p.dama <- round(mean(dama,na.rm = T)*100)
+
 ## Creating Table for TBI patients demography using table one
 fall$died<-factor(fall$died, levels = c("Yes","No"), labels = c("Died", "Survived"))
 fall$surgery <- factor(if_else(fall$tos == 0, "Conservative","Operative"))
@@ -533,6 +542,44 @@ catvars <- c("sex","agegrp","ti","mot","gcsgrp","surgery","isspv","inj_type","di
 Table1 <- CreateTableOne(vars = myvars, strata = "tran", data=fall, factorVars = catvars)
 knitr::kable(print(Table1,
                    caption = "Table 1. Demographic, Physiological parameters", showAllLevels = TRUE, printToggle = FALSE, varLabels = TRUE))
+
+#confidence interval of sbp_1
+#l.model <- lm(sbp_1 ~ 1, fall)
+#confint(l.model, level = 0.95)
+
+# 2.5 %   97.5 %
+#(Intercept) 114.2963 115.7012
+
+
+Table2 <- CreateTableOne(vars = "died", strata = "tagegrp", data = fall, factorVars = "died")
+
+knitr::kable(print(Table2,
+                   caption = "Table 2. Mortality in different age groups", showAllLevels = TRUE, printToggle = FALSE, varLabels = TRUE))
+
+Table3 <- CreateTableOne(vars = c("died"), strata = "isspv", data = fall)
+
+knitr::kable(print(Table3,
+                   caption = "Table 3. Mortality and different fracture", showAllLevels = TRUE, printToggle = FALSE, varLabels = TRUE))
+
+fall$died <- if_else(fall$died=="Yes", 1,0)
+
+model = glm(died~isspv + agegrp , data = fall, family="binomial")
+
+#Call:  glm(formula = died ~ isspv + agegrp, family = "binomial", data = fall)
+
+#Coefficients:
+#  (Intercept)  isspvModerate    isspvSevere  isspvProfound    agegrp18-24
+#      -3.2212         0.6599         1.1418         1.5195         0.8387
+#  agegrp25-44    agegrp45-64      agegrp65+  
+#      1.1503         1.4102         1.9841  
+
+#Degrees of Freedom: 4563 Total (i.e. Null);  4556 Residual
+#  (642 observations deleted due to missingness)
+#Null Deviance:	    4352 
+#Residual Deviance: 3976 	AIC: 3992
+
+
+
 
 ```
 
