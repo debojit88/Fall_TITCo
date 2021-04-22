@@ -561,8 +561,11 @@ Table3 <- CreateTableOne(vars = c("died"), strata = "isspv", data = fall)
 knitr::kable(print(Table3,
                    caption = "Table 3. Mortality and different fracture", showAllLevels = TRUE, printToggle = FALSE, varLabels = TRUE))
 
+
+# converting died to binomial data
 fall$died <- if_else(fall$died=="Yes", 1,0)
 
+#multiple logistic regression on ISS, Age and Mortality
 model = glm(died~isspv + agegrp , data = fall, family="binomial")
 
 #Call:  glm(formula = died ~ isspv + agegrp, family = "binomial", data = fall)
